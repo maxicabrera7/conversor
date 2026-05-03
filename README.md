@@ -1,44 +1,46 @@
 # Conversor Pro (cvt)
 
-Herramienta técnica para la extracción y normalización de datos desde formatos propietarios (.pdf, .pptx, .docx, .xlsx) a Markdown limpio, optimizado para alimentar Modelos de Lenguaje (LLMs).
+Herramienta técnica de alto rendimiento para la extracción y normalización de datos desde formatos propietarios (.pdf, .pptx, .docx, .xlsx) a Markdown limpio, optimizado para alimentar Modelos de Lenguaje (LLMs).
 
 ## 🛠 Capacidades Técnicas
 
-- **Motores de Conversión:**
-    - **PDF:** Utiliza `pymupdf4llm` para una extracción con preservación de tablas y marcas[cite: 1].
-    - **Office (.pptx, .docx):** Implementado mediante `markitdown` de Microsoft y `python-pptx` para procesar notas del orador[cite: 1].
-    - **Excel (.xlsx):** Conversión de hojas de cálculo a tablas Markdown mediante `pandas` y `tabulate`[cite: 1].
-- **Procesamiento de Texto:** Limpieza automática de ruido visual, normalización de saltos de línea y eliminación de caracteres nulos mediante expresiones regulares[cite: 1].
-- **Interfaz:** Barra de progreso integrada con `tqdm` para el procesamiento de directorios completos[cite: 1].
+*   **Motores de Conversión**:
+    *   **PDF**: Utiliza `pymupdf4llm` para una extracción técnica que preserva tablas y marcas de formato.
+    *   **Office (.pptx, .docx)**: Implementado mediante `markitdown` de Microsoft y `python-pptx` para capturar incluso las notas del orador en diapositivas.
+    *   **Excel (.xlsx)**: Conversión de cada hoja de cálculo a tablas Markdown independientes mediante `pandas` y `tabulate`.
+*   **Procesamiento de Texto**: El script aplica filtros mediante expresiones regulares para eliminar ruido visual, normalizar espaciados (máximo dos saltos de línea) y limpiar caracteres nulos.
+*   **Resiliencia**: Incluye una lógica de reintentos automáticos (`MAX_REINTENTOS = 2`) con pausas de seguridad para evitar bloqueos por archivos en uso.
+*   **Interfaz**: Sistema de barras de progreso mediante `tqdm` para el procesamiento masivo de directorios, configurable mediante el flag `--quiet`.
 
 ## 📂 Estructura del Proyecto
 
-- `convertir.py`: Núcleo del script con lógica de reintentos y resolución de rutas inteligentes[cite: 1].
-- `venv/`: Entorno virtual local (aislado y fuera del control de versiones).
-- `.gitignore`: Configuración estricta para evitar la subida de binarios y basura técnica.
-- `errores.log`: Registro automático de fallos de conversión[cite: 1].
+*   `convertir.py`: Núcleo del script con lógica de resolución inteligente de rutas y manejo de errores.
+*   `venv/`: Entorno virtual aislado con todas las dependencias instaladas (Excluido de Git vía .gitignore).
+*   `.gitignore`: Configuración de filtrado para evitar la subida de binarios, caché de Python y basura técnica.
+*   `errores.log`: Registro automático de fallos detallados generado en el directorio de ejecución.
 
-## 🔧 Instalación Local
+## 🔧 Instalación y Configuración Local
 
 1. Clonar el repositorio en `C:\dev\conversor`.
-2. Crear y configurar el entorno virtual:
-   ```powershell
-   python -m venv venv
-   .\venv\Scripts\Activate.ps1
-   pip install pymupdf4llm markitdown python-pptx pandas tqdm tabulate
+2. Crear el entorno virtual e instalar la suite de dependencias requeridas:
+```powershell
+python -m venv venv
+.\venv\Scripts\Activate.ps1
+pip install pymupdf4llm markitdown python-pptx pandas tqdm tabulate
+```
 
-   ## ⌨️ Integración con PowerShell ($PROFILE)
-Añade esta función a tu perfil de Windows PowerShell para ejecutar el conversor desde cualquier ubicación:
+## ⌨️ Integración Global (PowerShell $PROFILE)
 
+Copia este bloque en tu `$PROFILE` para disponer del comando `cvt` globalmente. El script incluye un sistema de sincronización automática con cooldown de 1 día:
+```powershell
 function cvt {
-    # Control de sincronización con cooldown de 1 día
     $syncFile = "$HOME\.cvt_last_sync"
     $currentDate = Get-Date
     $repoPath = "C:\dev\conversor"
 
     if (Test-Path $syncFile) {
         try {
-            $content = Get-Content $syncFile -Raw
+            $content = (Get-Content $syncFile -Raw).Trim()
             $lastSync = [DateTime]$content
             if ($currentDate -gt $lastSync.AddDays(1)) {
                 if (Test-Path "$repoPath\.git") {
@@ -50,14 +52,21 @@ function cvt {
         } catch { Get-Date -Format "yyyy-MM-dd HH:mm:ss" | Out-File $syncFile }
     } else { Get-Date -Format "yyyy-MM-dd HH:mm:ss" | Out-File $syncFile }
 
-    # Ejecución del script
     & "C:\dev\conversor\venv\Scripts\python.exe" "C:\dev\conversor\convertir.py" $args[0]
 }
+```
 
-## 🚀 Uso
-El script permite procesar archivos individuales o carpetas completas. Crea automáticamente una carpeta MD_NombreDelArchivo para organizar el output y las imágenes extraídas
-# Convertir un archivo (la extensión es opcional)
-cvt "DocumentoTecnico.pdf"
+## 🚀 Guía de Uso
 
-# Procesar una carpeta completa de archivos Office/PDF
-cvt "."
+El script resuelve rutas de forma inteligente (detecta archivos aunque omitas la extensión) y organiza el contenido en carpetas `MD_` dedicadas para preservar las imágenes extraídas.
+
+```powershell
+# Convertir un archivo específico
+cvt "Reporte_Trimestral.pdf"
+
+# Procesar todos los archivos compatibles en una carpeta completa
+cvt "C:\dev\documentacion_cliente"
+```
+
+---
+**Protocolo de Mantenimiento**: Este proyecto se rige por el principio de optimización radical. Las conversiones fallidas se registran en `errores.log` para auditoría posterior.
