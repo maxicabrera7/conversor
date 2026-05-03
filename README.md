@@ -19,17 +19,34 @@ Herramienta técnica de alto rendimiento para la extracción y normalización de
 *   `.gitignore`: Configuración de filtrado para evitar la subida de binarios, caché de Python y basura técnica.
 *   `errores.log`: Registro automático de fallos detallados generado en el directorio de ejecución.
 
-## 🔧 Instalación y Configuración Local
+## --- GUÍA DE INSTALACIÓN ---
 
-1. Clonar el repositorio en `C:\dev\conversor`.
-2. Crear el entorno virtual e instalar la suite de dependencias requeridas:
+1. INSTALAR GIT CLI (No solo la App de Escritorio)
+ Descarga desde: https://git-scm.com/download/win
+ DURANTE LA INSTALACIÓN: Es CRÍTICO seleccionar la opción:
+ "Git from the command line and also from 3rd-party software"
+ Esto permite que PowerShell reconozca el comando 'git'.
+
+2. VERIFICACIÓN
+ Abre una PowerShell nueva y escribe:
+ git --version
+ Si responde con una versión, el sistema está listo.
+
+3. INSTALAR PYTHON
+ Descarga desde: https://python.org
+ DURANTE LA INSTALACIÓN: Marca la casilla "Add Python to PATH".
+
+4. DESPLIEGUE DEL CONVERSOR
 ```powershell
-python -m venv venv
-.\venv\Scripts\Activate.ps1
-pip install pymupdf4llm markitdown python-pptx pandas tqdm tabulate
+ 1. cd C:\dev
+    2. git clone https://github.com/maxicabrera7/conversor.git
+        3. cd conversor
+            4. python -m venv venv
+                5. .\venv\Scripts\Activate.ps1
+                    6. pip install pymupdf4llm markitdown python-pptx pandas tqdm tabulate
 ```
 
-## ⌨️ Integración Global (PowerShell $PROFILE)
+5. ⌨️ Integración Global (PowerShell $PROFILE)
 
 Copia este bloque en tu `$PROFILE` para disponer del comando `cvt` globalmente. El script incluye un sistema de sincronización automática con cooldown de 1 día:
 ```powershell
