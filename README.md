@@ -19,57 +19,51 @@ Herramienta técnica de alto rendimiento para la extracción y normalización de
 *   `.gitignore`: Configuración de filtrado para evitar la subida de binarios, caché de Python y basura técnica.
 *   `errores.log`: Registro automático de fallos detallados generado en el directorio de ejecución.
 
-## --- GUÍA DE INSTALACIÓN ---
+## 🔧 Instalación y Configuración Local
 
-### 1. INSTALAR GIT CLI (No solo la App de Escritorio):
-Descarga desde: https://git-scm.com/download/win
-DURANTE LA INSTALACIÓN: Es CRÍTICO seleccionar la opción:
-"Git from the command line and also from 3rd-party software"
-Esto permite que PowerShell reconozca el comando 'git'.
-
-### 2. VERIFICACIÓN:
-Abre una PowerShell nueva y escribe:
-git --version
-Si responde con una versión, el sistema está listo.
-
-### 3. INSTALAR PYTHON:
-Descarga desde: https://python.org
-DURANTE LA INSTALACIÓN: Marca la casilla "Add Python to PATH".
-
-### 4. DESPLIEGUE DEL CONVERSOR:
-```powershell
- 1. cd C:\dev
-    2. git clone https://github.com/maxicabrera7/conversor.git
-        3. cd conversor
-            4. python -m venv venv
-                5. .\venv\Scripts\Activate.ps1
-                    6. pip install pymupdf4llm markitdown python-pptx pandas tqdm tabulate
+1. Clonar el repositorio en `C:\dev\conversor`.
+2. Crear el entorno virtual e instalar la suite de dependencias requeridas:
+```python
+python -m venv venv
+.\venv\Scripts\Activate.ps1
+pip install -r requirements.txt
 ```
 
-### 5. ⌨️ Integración Global (PowerShell $PROFILE)
+## ⌨️ Integración Global (PowerShell $PROFILE)
 
 Copia este bloque en tu `$PROFILE` para disponer del comando `cvt` globalmente. El script incluye un sistema de sincronización automática con cooldown de 1 día:
 ```powershell
+# --- COPIAR ESTO EN EL notepad $PROFILE DE POWERSHELL ---
+
+# 1. Definir la ruta donde se clonó el proyecto
+$PATH_UNLAR = "C:\ruta\donde\esta\el\repo"
+
+# 2. Función de sincronización inteligente (Si no existe, crearla)
+if (-not (Get-Command Invoke-LazySync -ErrorAction SilentlyContinue)) {
+    function Invoke-LazySync {
+        param($repoPath, $repoName, $days = 1)
+        $sFile = Join-Path $HOME ".cvt_sync_$repoName"
+        $now = Get-Date
+        if (Test-Path $sFile) {
+            try {
+                $last = [DateTime](Get-Content $sFile -Raw)
+                if ($now -lt $last.AddDays($days)) { return }
+            } catch { }
+        }
+        if (Test-Path (Join-Path $repoPath ".git")) {
+            Write-Host "[!] Sincronizando $repoName..." -ForegroundColor Yellow
+            Push-Location $repoPath; git pull origin main; Pop-Location
+            $now.ToString("yyyy-MM-dd HH:mm:ss") | Out-File $sFile
+        }
+    }
+}
+
+# 3. Comando de ejecución
 function cvt {
-    $syncFile = "$HOME\.cvt_last_sync"
-    $currentDate = Get-Date
-    $repoPath = "C:\dev\conversor"
-
-    if (Test-Path $syncFile) {
-        try {
-            $content = (Get-Content $syncFile -Raw).Trim()
-            $lastSync = [DateTime]$content
-            if ($currentDate -gt $lastSync.AddDays(1)) {
-                if (Test-Path "$repoPath\.git") {
-                    Write-Host "[!] Sincronizando cvt..." -ForegroundColor Yellow
-                    Push-Location $repoPath; git pull origin main; Pop-Location
-                    Get-Date -Format "yyyy-MM-dd HH:mm:ss" | Out-File $syncFile
-                }
-            }
-        } catch { Get-Date -Format "yyyy-MM-dd HH:mm:ss" | Out-File $syncFile }
-    } else { Get-Date -Format "yyyy-MM-dd HH:mm:ss" | Out-File $syncFile }
-
-    & "C:\dev\conversor\venv\Scripts\python.exe" "C:\dev\conversor\convertir.py" $args[0]
+    Invoke-LazySync $PATH_UNLAR "convertir"
+    $py = Join-Path $PATH_UNLAR "vent\Scripts\python.exe"
+    $sc = Join-Path $PATH_UNLAR "convertir.py"
+    if (Test-Path $py) { & $py $sc $args[0] } else { Write-Error "Entorno virtual no encontrado." }
 }
 ```
 
