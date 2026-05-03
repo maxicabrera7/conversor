@@ -21,22 +21,22 @@ Herramienta técnica de alto rendimiento para la extracción y normalización de
 
 ## --- GUÍA DE INSTALACIÓN ---
 
-1. INSTALAR GIT CLI (No solo la App de Escritorio)
- Descarga desde: https://git-scm.com/download/win
- DURANTE LA INSTALACIÓN: Es CRÍTICO seleccionar la opción:
- "Git from the command line and also from 3rd-party software"
- Esto permite que PowerShell reconozca el comando 'git'.
+1. INSTALAR GIT CLI (No solo la App de Escritorio):
+Descarga desde: https://git-scm.com/download/win
+DURANTE LA INSTALACIÓN: Es CRÍTICO seleccionar la opción:
+"Git from the command line and also from 3rd-party software"
+Esto permite que PowerShell reconozca el comando 'git'.
 
-2. VERIFICACIÓN
- Abre una PowerShell nueva y escribe:
- git --version
- Si responde con una versión, el sistema está listo.
+2. VERIFICACIÓN:
+Abre una PowerShell nueva y escribe:
+git --version
+Si responde con una versión, el sistema está listo.
 
-3. INSTALAR PYTHON
- Descarga desde: https://python.org
- DURANTE LA INSTALACIÓN: Marca la casilla "Add Python to PATH".
+3. INSTALAR PYTHON:
+Descarga desde: https://python.org
+DURANTE LA INSTALACIÓN: Marca la casilla "Add Python to PATH".
 
-4. DESPLIEGUE DEL CONVERSOR
+4. DESPLIEGUE DEL CONVERSOR:
 ```powershell
  1. cd C:\dev
     2. git clone https://github.com/maxicabrera7/conversor.git
