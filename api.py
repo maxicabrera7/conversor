@@ -9,16 +9,13 @@ class AgenteLimpiador:
         if not api_key:
             raise ValueError("Falta la GEMINI_API_KEY en el entorno.")
 
-        # SDK google-genai 2.x usa v1beta por defecto.
-        # Eso es CORRECTO: los modelos Gemini viven en v1beta, no en v1.
-        # No se sobreescribe el endpoint.
         self.client = genai.Client(api_key=api_key)
-        self.model_id = "gemini-2.0-flash-lite"
+        self.model_id = "gemini-2.5-flash"
 
-    def procesar_bloque(self, texto_crudo: str, reintentos: int = 3) -> str:
+    def procesar_bloque(self, texto_crudo: str, reintentos: int = 5) -> str:
         """
         Envía un bloque de texto crudo a Gemini para limpieza de ruido OCR.
-        Implementa reintentos con backoff exponencial para el Error 429 (rate limit).
+        Backoff progresivo calibrado al reset real del tier gratuito (~60s).
         No resume ni parafrasea: fidelidad absoluta al contenido original.
         """
         prompt = f"""Eres un auditor técnico. Tu única misión es limpiar el siguiente texto:
@@ -30,18 +27,20 @@ class AgenteLimpiador:
 TEXTO A PROCESAR:
 {texto_crudo}
 """
+        # Tiempos calibrados al reset real de Gemini (~60s por minuto).
+        # Intento 0->60s, 1->90s, 2->120s, 3->150s, 4->180s
+        backoff = [60, 90, 120, 150, 180]
+
         for intento in range(reintentos):
             try:
                 response = self.client.models.generate_content(
                     model=self.model_id,
                     contents=prompt,
                     config=types.GenerateContentConfig(
-                        # Temperatura 0 para máxima fidelidad y reproducibilidad.
                         temperature=0.0,
                         max_output_tokens=8192,
                     )
                 )
-                # Validación de respuesta no vacía antes de retornar.
                 if response.text and response.text.strip():
                     return response.text.strip()
 
@@ -50,15 +49,12 @@ TEXTO A PROCESAR:
             except Exception as e:
                 error_str = str(e)
 
-                # Manejo específico del Error 429: Rate Limit del Tier Gratuito.
-                # Backoff exponencial: espera 10s, 20s, 30s entre reintentos.
                 if "429" in error_str:
-                    espera = (intento + 1) * 10
-                    print(f"  [!] Rate limit (429). Esperando {espera}s antes de reintentar...")
+                    espera = backoff[intento] if intento < len(backoff) else 180
+                    print(f"  [!] Rate limit (429). Esperando {espera}s... (intento {intento + 1}/{reintentos})")
                     time.sleep(espera)
                     continue
 
-                # Cualquier otro error (400, 403, 500) es fatal para este bloque.
                 return f"ERROR API [{type(e).__name__}]: {error_str}"
 
         return "ERROR: Canal saturado. Se agotaron todos los reintentos."

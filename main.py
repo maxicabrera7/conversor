@@ -85,7 +85,7 @@ class Orquestador:
             
             archivos_limpios.append(ruta_chunk)
             # Estabilizador de canal para evitar el Error 429
-            time.sleep(3)
+            time.sleep(65)
 
         # 4. UNIFICACIÓN Y SALIDA FINAL
         print("[*] Fase 3: Estabilizando mensaje y eliminando redundancias...")
