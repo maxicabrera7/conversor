@@ -1,6 +1,32 @@
+# === ENTORNOS VIRTUALES ===
 venv/
 .venv/
+
+# === CACHÉ DE PYTHON ===
 __pycache__/
 *.py[cod]
-errores.log
+*.pyo
+*.pyd
+.Python
+
+# === SALIDAS DEL PIPELINE ===
+# Carpetas con el Markdown extraído por convertir.py
 MD_*/
+# Carpetas temporales con bloques limpios por api.py
+temp_*/
+# Archivos finales ensamblados por unificador.py
+*_LIMPIO.md
+
+# === LOGS Y CONTROL DE SYNC ===
+errores.log
+*.log
+.cvt_sync_*
+
+# === CLAVES Y ENTORNO ===
+.env
+*.env
+
+# === BASURA DE SISTEMA ===
+.DS_Store
+Thumbs.db
+desktop.ini

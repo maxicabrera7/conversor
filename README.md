@@ -1,83 +1,119 @@
 # Conversor Pro (cvt)
 
-Herramienta técnica de alto rendimiento para la extracción y normalización de datos desde formatos propietarios (.pdf, .pptx, .docx, .xlsx) a Markdown limpio, optimizado para alimentar Modelos de Lenguaje (LLMs).
+Herramienta técnica de alto rendimiento para la extracción, limpieza inteligente y normalización de documentos (.pdf, .pptx, .docx, .xlsx) a Markdown limpio, optimizado para alimentar Modelos de Lenguaje (LLMs).
+
+El pipeline opera en cuatro módulos independientes: extracción bruta → limpieza por IA → unificación → salida final.
 
 ## 🛠 Capacidades Técnicas
 
-*   **Motores de Conversión**:
-    *   **PDF**: Utiliza `pymupdf4llm` para una extracción técnica que preserva tablas y marcas de formato.
-    *   **Office (.pptx, .docx)**: Implementado mediante `markitdown` de Microsoft y `python-pptx` para capturar incluso las notas del orador en diapositivas.
-    *   **Excel (.xlsx)**: Conversión de cada hoja de cálculo a tablas Markdown independientes mediante `pandas` y `tabulate`.
-*   **Procesamiento de Texto**: El script aplica filtros mediante expresiones regulares para eliminar ruido visual, normalizar espaciados (máximo dos saltos de línea) y limpiar caracteres nulos.
-*   **Resiliencia**: Incluye una lógica de reintentos automáticos (`MAX_REINTENTOS = 2`) con pausas de seguridad para evitar bloqueos por archivos en uso.
-*   **Interfaz**: Sistema de barras de progreso mediante `tqdm` para el procesamiento masivo de directorios, configurable mediante el flag `--quiet`.
+### Motores de Conversión (`convertir.py`)
+- **PDF**: `pymupdf4llm` — extracción técnica con preservación de tablas, imágenes y formato.
+- **PowerPoint (.pptx)**: `python-pptx` — estructurado por diapositivas con notas del orador en blockquotes.
+- **Word (.docx)**: `markitdown` de Microsoft — conversión directa a Markdown.
+- **Excel (.xlsx)**: `pandas` + `tabulate` — cada hoja como tabla Markdown independiente.
+
+### Limpieza por IA (`api.py`)
+- Utiliza **Gemini 2.5 Flash** via `google-genai` SDK para eliminar ruido de OCR, encabezados repetitivos y basura visual.
+- Fragmentación en bloques de ~3250 palabras con **ventana de solapamiento** (sliding window) para no cortar conceptos en los bordes.
+- Sistema de reintentos con backoff exponencial para manejar el rate limit del tier gratuito (Error 429).
+- Fidelidad absoluta: el modelo tiene instrucciones estrictas de no resumir ni parafrasear.
+
+### Unificación (`unificador.py`)
+- Fusiona los bloques procesados en un único documento coherente.
+- Elimina redundancias de H1 y solapamientos entre bloques.
+- Normaliza el espaciado final del documento.
+
+### Orquestador (`main.py`)
+- Interfaz de control que coordina los cuatro módulos.
+- Sistema de checkpoints: detecta bloques ya procesados para reanudar sin desperdiciar cuota de API.
+- Flag `--no-img` para omitir la extracción de imágenes y reducir el volumen de datos.
 
 ## 📂 Estructura del Proyecto
 
-*   `convertir.py`: Núcleo del script con lógica de resolución inteligente de rutas y manejo de errores.
-*   `venv/`: Entorno virtual aislado con todas las dependencias instaladas (Excluido de Git vía .gitignore).
-*   `.gitignore`: Configuración de filtrado para evitar la subida de binarios, caché de Python y basura técnica.
-*   `errores.log`: Registro automático de fallos detallados generado en el directorio de ejecución.
+```
+conversor/
+├── main.py          # Orquestador central (punto de entrada de cvt)
+├── convertir.py     # Motor de extracción multi-formato
+├── api.py           # Cliente Gemini para limpieza por IA
+├── unificador.py    # Ensamblador del documento final
+├── requirements.txt
+├── .gitignore
+└── venv/            # Excluido de Git
+```
 
-## 🔧 Instalación y Configuración Local
+**Salidas generadas** (excluidas de Git):
+- `MD_<nombre>/` — Markdown crudo extraído por `convertir.py`
+- `temp_<nombre>/` — Bloques limpios por `api.py` (checkpoint de caché)
+- `<nombre>_LIMPIO.md` — Documento final ensamblado
 
-1. Clonar el repositorio en `C:\dev\conversor`.
-2. Crear el entorno virtual e instalar la suite de dependencias requeridas:
-```python
+## 🔧 Instalación
+
+```powershell
+git clone <repo> C:\dev\conversor
+cd C:\dev\conversor
 python -m venv venv
 .\venv\Scripts\Activate.ps1
 pip install -r requirements.txt
 ```
 
-## ⌨️ Integración Global (PowerShell $PROFILE)
-
-Copia este bloque en tu `$PROFILE` para disponer del comando `cvt` globalmente. El script incluye un sistema de sincronización automática con cooldown de 1 día:
+**Variable de entorno requerida** (configurar una sola vez):
 ```powershell
-# --- COPIAR ESTO EN EL notepad $PROFILE DE POWERSHELL ---
+[System.Environment]::SetEnvironmentVariable("GEMINI_API_KEY", "tu-key-aqui", "User")
+```
 
-# 1. Definir la ruta donde se clonó el proyecto
-$PATH_UNLAR = "C:\ruta\donde\esta\el\repo"
+La API key se obtiene en [aistudio.google.com/apikey](https://aistudio.google.com/apikey) en un proyecto **sin billing activado** para acceder al tier gratuito.
 
-# 2. Función de sincronización inteligente (Si no existe, crearla)
-if (-not (Get-Command Invoke-LazySync -ErrorAction SilentlyContinue)) {
-    function Invoke-LazySync {
-        param($repoPath, $repoName, $days = 1)
-        $sFile = Join-Path $HOME ".cvt_sync_$repoName"
-        $now = Get-Date
-        if (Test-Path $sFile) {
-            try {
-                $last = [DateTime](Get-Content $sFile -Raw)
-                if ($now -lt $last.AddDays($days)) { return }
-            } catch { }
-        }
-        if (Test-Path (Join-Path $repoPath ".git")) {
-            Write-Host "[!] Sincronizando $repoName..." -ForegroundColor Yellow
-            Push-Location $repoPath; git pull origin main; Pop-Location
-            $now.ToString("yyyy-MM-dd HH:mm:ss") | Out-File $sFile
-        }
+## ⌨️ Integración Global (PowerShell `$PROFILE`)
+
+```powershell
+$PATH_CVT = "C:\dev\conversor"
+
+function Invoke-LazySync {
+    param($repoPath, $repoName)
+    $sFile = Join-Path $HOME ".cvt_sync_$repoName"
+    $now = Get-Date
+    $needsSync = $false
+    if (Test-Path $sFile) {
+        try {
+            $lastSync = [DateTime](Get-Content $sFile -Raw)
+            if ($now -gt $lastSync.AddDays(1)) { $needsSync = $true }
+        } catch { $needsSync = $true }
+    } else { $needsSync = $true }
+    if ($needsSync -and (Test-Path (Join-Path $repoPath ".git"))) {
+        Write-Host "[!] Sincronizando $repoName..." -ForegroundColor Yellow
+        Push-Location $repoPath
+        git pull origin main
+        Pop-Location
+        $now.ToString("yyyy-MM-dd HH:mm:ss") | Out-File $sFile
     }
 }
 
-# 3. Comando de ejecución
 function cvt {
-    Invoke-LazySync $PATH_UNLAR "convertir"
-    $py = Join-Path $PATH_UNLAR "vent\Scripts\python.exe"
-    $sc = Join-Path $PATH_UNLAR "convertir.py"
-    if (Test-Path $py) { & $py $sc $args[0] } else { Write-Error "Entorno virtual no encontrado." }
+    Invoke-LazySync $PATH_CVT "conversor"
+    $python = Join-Path $PATH_CVT "venv\Scripts\python.exe"
+    $script  = Join-Path $PATH_CVT "main.py"
+    if (Test-Path $python) {
+        & $python $script $args[0]
+    } else {
+        Write-Error "Entorno virtual no encontrado en $PATH_CVT"
+    }
 }
 ```
 
 ## 🚀 Guía de Uso
 
-El script resuelve rutas de forma inteligente (detecta archivos aunque omitas la extensión) y organiza el contenido en carpetas `MD_` dedicadas para preservar las imágenes extraídas.
-
 ```powershell
-# Convertir un archivo específico
-cvt "Reporte_Trimestral.pdf"
+# Procesar un archivo (genera <nombre>_LIMPIO.md en el mismo directorio)
+cvt "Apunte_Termodinamica.pdf"
 
-# Procesar todos los archivos compatibles en una carpeta completa
-cvt "C:\dev\documentacion_cliente"
+# Omitir extracción de imágenes (más rápido, menor tamaño)
+cvt "Apunte_Termodinamica.pdf" --no-img
+
+# Procesar todos los archivos compatibles de una carpeta
+cvt "C:\Universidad\Materia\"
 ```
 
+> **Nota sobre el tier gratuito**: Gemini 2.5 Flash tiene límites de requests por minuto. El pipeline incluye pausas automáticas entre bloques y reintentos con backoff para operar dentro de esos límites sin intervención manual.
+
 ---
-**Protocolo de Mantenimiento**: Este proyecto se rige por el principio de optimización radical. Las conversiones fallidas se registran en `errores.log` para auditoría posterior.
+**Protocolo de Mantenimiento**: Las conversiones fallidas se registran en `errores.log`. Los bloques ya procesados por la IA se cachean en `temp_<nombre>/` para que ante un corte de cuota puedas reanudar sin reprocesar desde cero.

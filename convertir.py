@@ -67,8 +67,10 @@ def procesar_xlsx_mejorado(ruta):
 
 # --- LÓGICA DE CONVERSIÓN ---
 
-def ejecutar_conversion(ruta_archivo, logger):
-    """Maneja la conversión individual con reintentos y organización de carpetas."""
+# --- REEMPLAZA ESTA FUNCIÓN EN convertir.py ---
+
+def ejecutar_conversion(ruta_archivo, logger, sin_imagenes=False):
+    """Maneja la conversión individual con parámetros sincronizados."""
     ext = os.path.splitext(ruta_archivo)[1].lower()
     nombre_base = os.path.splitext(os.path.basename(ruta_archivo))[0]
     carpeta_destino = os.path.join(os.path.dirname(ruta_archivo), f"MD_{nombre_base}")
@@ -86,7 +88,8 @@ def ejecutar_conversion(ruta_archivo, logger):
                 dir_actual = os.getcwd()
                 os.chdir(carpeta_destino)
                 try:
-                    md_text = pymupdf4llm.to_markdown(ruta_archivo, write_images=True, margins=(50, 0, 50, 0))
+                    md_text = pymupdf4llm.to_markdown(ruta_archivo, write_images=not sin_imagenes, margins=(50, 0, 50, 0))
+                    
                 finally:
                     os.chdir(dir_actual)
             
@@ -110,7 +113,12 @@ def ejecutar_conversion(ruta_archivo, logger):
             ultimo_error = e
             time.sleep(0.5)
 
-    logger.error(f"FALLO en {nombre_base}: {ultimo_error}")
+    # Protección de muelle: evita el AttributeError si el logger es None
+    if logger:
+        logger.error(f"FALLO en {nombre_base}: {ultimo_error}")
+    else:
+        print(f"[!] Error en {nombre_base}: {ultimo_error}")
+        
     return "error"
 
 # --- INTERFAZ Y EJECUCIÓN ---
@@ -152,14 +160,14 @@ def main():
         iterador = tqdm(archivos, desc="Convirtiendo biblioteca", unit="fich", ncols=80) if TQDM_DISPONIBLE and not args.quiet else archivos
         
         for r in iterador:
-            res = ejecutar_conversion(r, logger)
+            res = ejecutar_conversion(r, logger, sin_imagenes=False)
             contadores[res] += 1
     else:
         ruta = resolver_ruta_inteligente(args.entrada)
         if not ruta:
             print(f"[!] Error: No se encontró '{args.entrada}'")
             return
-        res = ejecutar_conversion(ruta, logger)
+        res = ejecutar_conversion(ruta, logger, sin_imagenes=False)
         contadores[res] += 1
 
     if not args.quiet:
